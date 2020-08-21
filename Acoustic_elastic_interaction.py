@@ -33,15 +33,15 @@ boundaries.set_all(0)
 class TopF(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], 2.0) and between(x[0], (-2.0, 0.0)) and on_boundary)
-    
+
 class TopS(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], 2.0) and between(x[0], (0.0, 2.0)) and on_boundary)
-    
+
 class BottomF(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], -2.0) and between(x[0], (-2.0, 0.0)) and on_boundary)
-    
+
 class BottomS(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], -2.0) and between(x[0], (0.0, 2.0)) and on_boundary)
@@ -49,7 +49,7 @@ class BottomS(SubDomain):
 class Left(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[0], -2.0) and on_boundary)
-    
+
 class Right(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[0], 2.0) and on_boundary)
@@ -87,7 +87,7 @@ dx = Measure("dx", domain=mesh, subdomain_data=subdomains)
 ds = Measure("ds", domain=mesh, subdomain_data=boundaries)
 dS = Measure("dS", domain=mesh, subdomain_data=boundaries)
 
-sigma = 2.0*mu*sym(grad(u)) + lmbda*tr(sym(grad(u)))*Identity(u.geometric_dimension())
+sigma = lambda u: 2.0*mu*sym(grad(u)) + lmbda*tr(sym(grad(u)))*Identity(u.geometric_dimension())
 n = FacetNormal(mesh)
 
 
@@ -131,13 +131,14 @@ bcs = BlockDirichletBC([bcPin, bcF, bcS])
 a_11 = (inner(grad(p),grad(q)) - k**2 * p*q)*dx(fluid)
 a_12 = (rho*omega**2 * avg(q) * inner(n('+'), u('+')))*dS(interf)
 a_21 = (avg(p)*inner(n('+'), v('+')))*dS(interf)
-a_22 = (inner(sigma, grad(v)) - rho*omega**2*inner(u,v))*dx(solid)
+a_22 = (inner(sigma(u), grad(v)) - rho*omega**2*inner(u,v))*dx(solid)
 
 #Weak form
 a = [[a_11, a_12],
      [a_21, a_22]]
 
 L = [0, 0]
+L = BlockForm(L, block_function_space=W, block_form_rank=1)  # only necessary because L is all zeros, otherwise multiphenics detects function spaces and rank automatically
 
 A = block_assemble(a)
 F = block_assemble(L)
