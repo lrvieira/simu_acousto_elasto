@@ -81,7 +81,7 @@ Right().mark(boundaries, right)
 # ******* Set subdomains, boundaries, and interface ****** #
 OmF = MeshRestriction(mesh, Fluid())
 OmS = MeshRestriction(mesh, Solid())
-Gam = MeshRestriction(mesh, Interface())
+Gam = MeshRestriction(mesh, Interface()) #Is it needed?
 
 dx = Measure("dx", domain=mesh, subdomain_data=subdomains)
 ds = Measure("ds", domain=mesh, subdomain_data=boundaries)
@@ -103,7 +103,6 @@ print("length(Gamma) = ", lengthI)
 # ***** Global FE spaces and their restrictions ****** #
 P2v = VectorFunctionSpace(mesh, "CG", 2)
 P1 = FunctionSpace(mesh, "CG", 1)
-Pt = FunctionSpace(mesh, "DGT", 1)
 
 W = BlockFunctionSpace([P1, P2v], restrict=[OmF, OmS])
 
@@ -144,4 +143,6 @@ A = block_assemble(a)
 F = block_assemble(L)
 bcs.apply(A)
 bcs.apply(F)
+
+sol = BlockFunction(W)
 block_solve(A, sol.block_vector(), F, "mumps")
