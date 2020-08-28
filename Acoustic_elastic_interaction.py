@@ -42,7 +42,6 @@ boundaries.set_all(0)
 
 class TopF(SubDomain):
     def inside(self, x, on_boundary):
-<<<<<<< HEAD
         return (near(x[1], y_2) and between(x[0], (x_1, int_x)) and between(x[0], ((int_x+esp_x), x_2)) and on_boundary)
 
 class TopS(SubDomain):
@@ -52,17 +51,6 @@ class TopS(SubDomain):
 class BottomF(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], y_1) and between(x[0], (x_1, int_x)) and between(x[0], ((int_x+esp_x), x_2)) and on_boundary)
-=======
-        return (near(x[1], 2.0) and between(x[0], (-2.0, 0.0)) and on_boundary)
-
-class TopS(SubDomain):
-    def inside(self, x, on_boundary):
-        return (near(x[1], 2.0) and between(x[0], (0.0, 2.0)) and on_boundary)
-
-class BottomF(SubDomain):
-    def inside(self, x, on_boundary):
-        return (near(x[1], -2.0) and between(x[0], (-2.0, 0.0)) and on_boundary)
->>>>>>> 5faa50607e3a48b0f11ccef52065623a4a180977
 
 class BottomS(SubDomain):
     def inside(self, x, on_boundary):
@@ -70,11 +58,7 @@ class BottomS(SubDomain):
 
 class Left(SubDomain):
     def inside(self, x, on_boundary):
-<<<<<<< HEAD
         return (near(x[0], x_1) and on_boundary)
-=======
-        return (near(x[0], -2.0) and on_boundary)
->>>>>>> 5faa50607e3a48b0f11ccef52065623a4a180977
 
 class Right(SubDomain):
     def inside(self, x, on_boundary):
@@ -161,6 +145,7 @@ BC_interf = DirichletBC(W.sub(1), Constant((0., 0.)), boundaries, interf)
 BC_left = DirichletBC(W.sub(0), Constant(0.), boundaries, topF)
 BC_test = DirichletBC(W.sub(1).sub(1), Constant(0.), boundaries, botS)
 bcs = BlockDirichletBC([BC_Pin, BC_topS, BC_botS])
+#bcs = BlockDirichletBC([BC_test, BC_topS, BC_botS])
 
 
 # ********  Define weak forms ********** #
