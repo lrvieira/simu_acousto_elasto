@@ -1,19 +1,20 @@
+from ufl import *
 from dolfin import *
 from multiphenics import *
 import numpy
-#from ufl import *
+
 
 a=0.1;
 t=a/10;
 
 ####PML definition
-############################################################ 
+############################################################
 def compProd(a1,b1,a2,b2):
         x1=a1*a2-b1*b2;
         x2=a1*b2+a2*b1;
         return (x1, x2)
-    
-class LR(Expression):
+
+class LR(UserExpression):
     def eval(self, value, x):
         a=0.1;t=a/10;
 
@@ -30,7 +31,7 @@ class LR(Expression):
     def value_shape(self):
         return (2,2)
 
-class LI(Expression):
+class LI(UserExpression):
     def eval(self, value, x):
         a=0.1;t=a/10;
 
@@ -76,14 +77,14 @@ class Middle(SubDomain):
     def inside(self, x, on_boundary):
         return (near(x[1], 0) and between(x[0], (-1,1)))
 
-LambdaR = LR
-LambdaI = LI
+LambdaR = LR()
+LambdaI = LI()
 LLR = lR
 LLI = lI
 
 
 ####Geometrical properties
-############################################################    
+############################################################
 x_1, y_1 = -6.0, -4.0
 x_2, y_2 = 6.0, 4.0
 nx, ny = 300, 200
@@ -110,7 +111,7 @@ C=as_tensor((lam*(delta[i,j]*delta[k,l])+mu*(delta[i,k]*delta[j,l]+delta[i,l]*de
 
 
 ####Space of functions
-############################################################ 
+############################################################
 V = VectorFunctionSpace(mesh, "CG", 1)
 Vcomplex = BlockFunctionSpace([V, V], restrict=[None, None])
 
