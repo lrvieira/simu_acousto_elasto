@@ -1,6 +1,7 @@
 from ufl import *
 from dolfin import *
 from multiphenics import *
+import matplotlib.pyplot as plt
 import numpy
 
 
@@ -49,7 +50,7 @@ class LI(UserExpression):
         return (2,2)
 
 
-class lR(Expression):
+class lR(UserExpression):
     def eval(self, value, x):
         a=0.1;t=a/10;
 
@@ -61,7 +62,7 @@ class lR(Expression):
 #    def value_shape(self):
 #        return (1,)
 
-class lI(Expression):
+class lI(UserExpression):
     def eval(self, value, x):
         a=0.1;t=a/10;
 
@@ -75,28 +76,29 @@ class lI(Expression):
 
 class Middle(SubDomain):
     def inside(self, x, on_boundary):
-        return (near(x[1], 0) and between(x[0], (-1,1)))
+        return (near(x[1], 0) and between(x[0], (-1/1500, 1/1500)))
+    
+def OuterBoundaries(x, on_boundary):
+    return on_boundary
 
 LambdaR = LR()
 LambdaI = LI()
-LLR = lR
-LLI = lI
+LLR = lR()
+LLI = lI()
 
 
-####Geometrical properties
+####Geometry and mesh
 ############################################################
-x_1, y_1 = -6.0, -4.0
-x_2, y_2 = 6.0, 4.0
-nx, ny = 300, 200
+nx, ny = 200, 200
 
-mesh = RectangleMesh(Point(x_1, y_1), Point(x_2, y_2), nx, ny)
+mesh = RectangleMesh(Point(-a/2-t, -a/2-t), Point(a/2+t, a/2+t), nx, ny)
 boundaries = MeshFunction("size_t", mesh, 1)
 boundaries.set_all(0)
 
 Middle().mark(boundaries, 1)
 
 
-####Material propertie
+####Material properties
 ############################################################
 E, rho, nu = 300E+8, 8000, 0.3
 frequency=50000
@@ -118,8 +120,11 @@ Vcomplex = BlockFunctionSpace([V, V], restrict=[None, None])
 
 #Applying the Boundary conditions
 ###########################################################
-source = [DirichletBC(Vcomplex.sub(0), Constant((1.0, 0.0)), boundaries, 1), DirichletBC(Vcomplex.sub(1), Constant((1.0, 0.0)), boundaries, 1)]
-bc=source
+BC1 = DirichletBC(Vcomplex.sub(0), Constant((1.0, 0.0)), boundaries, 1)
+BC2 = DirichletBC(Vcomplex.sub(1), Constant((0.0, 0.0)), boundaries, 1)
+#BC3 = DirichletBC(Vcomplex.sub(0), Constant((0.0, 0.0)), OuterBoundaries)
+#BC4 = DirichletBC(Vcomplex.sub(1), Constant((0.0, 0.0)), OuterBoundaries)
+bcs = BlockDirichletBC([BC1, BC2])
 
 
 #Real and Imaginary parts of the trial and test functions
@@ -128,9 +133,10 @@ bc=source
 (wR, wI) = BlockTestFunction(Vcomplex)
 
 
-strainR=0.5*(as_tensor((Dx(uR[i],k)*LambdaR[k,j]),(i,j,k))  +  as_tensor((Dx(uR[k],i)*LambdaR[j,k]),(i,j)))  -  0.5*(as_tensor((Dx(uI[i],k)*LambdaI[k,j]),(i,j))  +  as_tensor((Dx(uI[k],i)*LambdaI[j,k]),(i,j,k)))
+#Weak form and solve
+###########################################################
+strainR=0.5*(as_tensor((Dx(uR[i],k)*LambdaR[k,j]),(i,j))  +  as_tensor((Dx(uR[k],i)*LambdaR[j,k]),(i,j)))  -  0.5*(as_tensor((Dx(uI[i],k)*LambdaI[k,j]),(i,j))  +  as_tensor((Dx(uI[k],i)*LambdaI[j,k]),(i,j)))
 strainI=0.5*(as_tensor((Dx(uR[i],k)*LambdaI[k,j]),(i,j))  +  as_tensor((Dx(uR[k],i)*LambdaI[j,k]),(i,j)))  +  0.5*(as_tensor((Dx(uI[i],k)*LambdaR[k,j]),(i,j))  +  as_tensor((Dx(uI[k],i)*LambdaR[j,k]),(i,j)))
-
 
 tempR=LLR*LambdaR-LLI*LambdaI
 tempI=LLR*LambdaI+LLI*LambdaR
@@ -140,5 +146,36 @@ stressR=as_tensor((sR[i,j]*tempR[j,k]),(i,k))  -  as_tensor((sI[i,j]*tempI[j,k])
 stressI=as_tensor((sR[i,j]*tempI[j,k]),(i,k))  +  as_tensor((sI[i,j]*tempR[j,k]),(i,k))
 
 
-F=omega**2*rho*(dot((LLR*uR-LLI*uI),wR)+dot((LLR*uI+LLI*uR),wI))*dx-(inner(stressR, grad(wR))+inner(stressI, grad(wI)))*dx
-a, L = lhs(F), rhs(F)
+a_11 =  omega**2*rho*dot(LLR*uR,wR)*dx
+a_12 = -omega**2*rho*dot(LLI*uI,wR)*dx
+a_13 = -inner(stressR, grad(wR))*dx
+a_14 =  0
+a_21 =  omega**2*rho*dot(LLI*uR,wI)*dx
+a_22 = -omega**2*rho*dot(LLR*uI,wI)*dx
+a_23 =  0
+a_24 = -inner(stressI, grad(wI))*dx
+
+a = [[a_11, a_12, a_13, a_14],
+     [a_21, a_22, a_23, a_24]]
+
+L = [0, 0]
+L = BlockForm(L, block_function_space=Vcomplex, block_form_rank=1)
+
+A = block_assemble(a)
+F = block_assemble(L)
+bcs.apply(A)
+bcs.apply(F)
+
+sol = BlockFunction(Vcomplex)
+block_solve(A, sol.block_vector(), F, "mumps")
+uR, uI = block_split(sol)
+plt.figure()
+plot(uR)
+plt.figure()
+plot(uI)
+plt.show()
+
+file_uR = File("Elastic/uR.pvd")
+file_uI = File("Elastic/uI.pvd")
+file_uR << uR
+file_uI << uI
